@@ -13,6 +13,8 @@ import {
   type PlayerId,
   type Street,
 } from '../../core/game'
+import { practiceToStored, type PracticeFeedbackRecord } from '../../core/history'
+import { addHand, updateHand } from '../../db'
 import type { CoachJob, CoachReply } from '../../workers/coach.worker'
 
 /** 사람 = 플레이어 0, AI = 플레이어 1 */
@@ -83,11 +85,50 @@ function coachRequest(s: HandState, profileId: BotProfileId, action: Action): Co
   }
 }
 
+function feedbackRecords(entries: FeedbackEntry[], handNo: number): PracticeFeedbackRecord[] {
+  return entries
+    .filter((e) => e.handNo === handNo && e.status === 'done' && e.feedback)
+    .reverse()
+    .map((e) => ({
+      street: e.street,
+      verdict: e.feedback!.verdict,
+      chosen: e.feedback!.chosen,
+      recommended: e.feedback!.recommended,
+      evLoss: e.feedback!.evLoss,
+    }))
+}
+
 export const usePracticeStore = create<PracticeState>((set, get) => {
-  /** 핸드가 끝났으면 세션 기록에 반영 */
+  /** 핸드 번호 → 핸드 기록 DB id (코치 피드백이 늦게 도착하면 기록을 갱신하려고 보관) */
+  const savedIds = new Map<number, Promise<number | null>>()
+
+  const saveHand = (hand: HandState, handNo: number) => {
+    const { profileId, feedback } = get()
+    const stored = practiceToStored(hand, HERO, profileId, feedbackRecords(feedback, handNo))
+    savedIds.set(
+      handNo,
+      addHand(stored).catch((e) => {
+        console.error('연습 핸드 저장 실패', e)
+        return null
+      }),
+    )
+  }
+
+  const refreshSavedFeedback = (handNo: number) => {
+    const pending = savedIds.get(handNo)
+    if (!pending) return
+    void pending.then((id) => {
+      if (id === null) return
+      const { profileId, feedback } = get()
+      return updateHand(id, { practice: { profileId, feedback: feedbackRecords(feedback, handNo) } })
+    })
+  }
+
+  /** 핸드가 끝났으면 세션 기록에 반영하고 핸드 기록에 저장 */
   const settle = (hand: HandState) => {
     if (hand.result) {
       set((st) => ({ heroNet: Math.round((st.heroNet + netResult(hand)[HERO]) * 100) / 100, handsPlayed: st.handsPlayed + 1 }))
+      saveHand(hand, get().handNo)
     }
   }
 
@@ -109,7 +150,7 @@ export const usePracticeStore = create<PracticeState>((set, get) => {
     }, BOT_DELAY_MS)
   }
 
-  const onCoachReply = (reply: CoachReply) =>
+  const onCoachReply = (reply: CoachReply) => {
     set((st) => ({
       feedback: st.feedback.map((f) =>
         f.id !== reply.id
@@ -119,6 +160,9 @@ export const usePracticeStore = create<PracticeState>((set, get) => {
             : { ...f, status: 'error', error: reply.error },
       ),
     }))
+    const entry = get().feedback.find((f) => f.id === reply.id)
+    if (entry) refreshSavedFeedback(entry.handNo)
+  }
 
   return {
     profileId: 'tag',
@@ -134,6 +178,8 @@ export const usePracticeStore = create<PracticeState>((set, get) => {
     setStartingStack: (startingStack) => set({ startingStack: Math.max(10, Math.min(500, startingStack)) }),
 
     newSession: () => {
+      // 핸드 번호가 1부터 다시 시작하므로 이전 세션의 저장 기록과 섞이지 않게 비운다
+      savedIds.clear()
       set({ handNo: 0, handsPlayed: 0, heroNet: 0, feedback: [], hand: null })
       get().nextHand()
     },

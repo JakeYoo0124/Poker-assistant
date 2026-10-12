@@ -22,6 +22,7 @@ describe('App 라우팅', () => {
     ['/sizing', '베팅 사이즈 추천'],
     ['/practice', '연습 게임'],
     ['/hands', '핸드 기록'],
+    ['/hands/new', '핸드 입력'],
   ])('%s 경로에서 "%s" 페이지를 보여준다', (path, title) => {
     renderAt(path)
     expect(screen.getByRole('heading', { name: title })).toBeInTheDocument()
