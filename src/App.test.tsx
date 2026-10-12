@@ -20,6 +20,7 @@ describe('App 라우팅', () => {
   it.each([
     ['/ranges', '프리플랍 레인지'],
     ['/sizing', '베팅 사이즈 추천'],
+    ['/practice', '연습 게임'],
     ['/hands', '핸드 기록'],
   ])('%s 경로에서 "%s" 페이지를 보여준다', (path, title) => {
     renderAt(path)

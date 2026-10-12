@@ -43,13 +43,13 @@ export default function Layout() {
       </main>
 
       {/* 모바일: 하단 탭바 */}
-      <nav className="fixed inset-x-0 bottom-0 grid grid-cols-4 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] md:hidden dark:border-slate-800 dark:bg-slate-900">
+      <nav className="fixed inset-x-0 bottom-0 grid grid-cols-5 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] md:hidden dark:border-slate-800 dark:bg-slate-900">
         {NAV_ITEMS.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             className={({ isActive }) =>
-              `flex flex-col items-center gap-0.5 py-2 text-xs ${
+              `flex flex-col items-center gap-0.5 py-2 text-[11px] ${
                 isActive ? 'font-semibold text-felt-600' : 'text-slate-500'
               }`
             }
