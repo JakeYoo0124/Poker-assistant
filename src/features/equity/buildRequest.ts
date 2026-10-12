@@ -1,5 +1,7 @@
 import type { Card } from '../../core/cards'
 import type { Combo, EquityRequest, PlayerRange } from '../../core/equity'
+import { rangeCombos } from '../../core/range'
+import { playableClasses, type RangeChart } from '../ranges/model'
 import type { Opponent } from './store'
 
 export interface BuiltRequest {
@@ -14,7 +16,12 @@ export interface BuiltRequest {
 
 const isPair = (cards: (Card | null)[]): cards is [Card, Card] => cards[0] !== null && cards[1] !== null
 
-export function buildRequest(hero: (Card | null)[], board: (Card | null)[], opponents: Opponent[]): BuiltRequest {
+export function buildRequest(
+  hero: (Card | null)[],
+  board: (Card | null)[],
+  opponents: Opponent[],
+  charts: readonly RangeChart[],
+): BuiltRequest {
   const boardCards = board.filter((c): c is Card => c !== null)
   const empty: BuiltRequest = { request: null, message: null, hero: null, board: boardCards, knownOpponents: null }
 
@@ -29,16 +36,22 @@ export function buildRequest(hero: (Card | null)[], board: (Card | null)[], oppo
   const known: Combo[] = []
   for (let i = 0; i < opponents.length; i++) {
     const o = opponents[i]
+    const fail = (message: string) => ({ ...empty, hero: heroCombo, message })
+
     if (o.mode === 'random') {
       players.push({ kind: 'random' })
-      continue
+    } else if (o.mode === 'range') {
+      const chart = charts.find((c) => c.id === o.rangeId)
+      if (!chart) return fail(`상대 ${i + 1}의 레인지를 골라 주세요.`)
+      const combos = rangeCombos(playableClasses(chart))
+      if (combos.length === 0) return fail(`상대 ${i + 1}의 레인지 "${chart.name}"가 비어 있어요.`)
+      players.push({ kind: 'combos', combos })
+    } else {
+      if (!isPair(o.cards)) return fail(`상대 ${i + 1}의 핸드 2장을 골라 주세요.`)
+      const combo: Combo = [o.cards[0], o.cards[1]]
+      players.push({ kind: 'combos', combos: [combo] })
+      known.push(combo)
     }
-    if (!isPair(o.cards)) {
-      return { ...empty, hero: heroCombo, message: `상대 ${i + 1}의 핸드 2장을 골라 주세요.` }
-    }
-    const combo: Combo = [o.cards[0], o.cards[1]]
-    players.push({ kind: 'combos', combos: [combo] })
-    known.push(combo)
   }
 
   return {

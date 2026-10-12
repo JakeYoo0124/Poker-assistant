@@ -4,6 +4,7 @@ import type { Combo } from '../../core/equity'
 import Panel from '../../components/Panel'
 import PlayingCard from '../../components/PlayingCard'
 import { count, pct } from '../../components/format'
+import type { RangeChart } from '../ranges/model'
 import type { Opponent } from './store'
 import type { EquityWorkerState } from './useEquityWorker'
 
@@ -13,9 +14,10 @@ interface ResultPanelProps {
   hero: Combo | null
   board: Card[]
   opponents: Opponent[]
+  charts: readonly RangeChart[]
 }
 
-export default function ResultPanel({ worker, message, hero, board, opponents }: ResultPanelProps) {
+export default function ResultPanel({ worker, message, hero, board, opponents, charts }: ResultPanelProps) {
   const { result, status } = worker
 
   let body
@@ -27,10 +29,11 @@ export default function ResultPanel({ worker, message, hero, board, opponents }:
     body = <p className="py-6 text-center text-sm text-slate-500">계산 중…</p>
   } else {
     const rows = [
-      { label: '나', cards: hero as Card[] | null, hero: true },
+      { label: '나', cards: hero as Card[] | null, note: '', hero: true },
       ...opponents.map((o, i) => ({
         label: `상대 ${i + 1}`,
         cards: o.mode === 'hand' ? (o.cards as Card[]) : null,
+        note: o.mode === 'range' ? (charts.find((c) => c.id === o.rangeId)?.name ?? '레인지') : '랜덤',
         hero: false,
       })),
     ]
@@ -50,7 +53,7 @@ export default function ResultPanel({ worker, message, hero, board, opponents }:
                     {row.cards ? (
                       row.cards.map((c) => <PlayingCard key={c} card={c} size="sm" />)
                     ) : (
-                      <span className="text-xs text-slate-400">랜덤</span>
+                      <span className="text-xs text-slate-400">{row.note}</span>
                     )}
                   </span>
                   <span className={`ml-auto tabular-nums ${row.hero ? 'text-2xl font-bold' : 'text-lg font-semibold'}`}>

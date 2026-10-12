@@ -6,12 +6,14 @@ export type SlotRef =
   | { kind: 'board'; index: number }
   | { kind: 'opp'; opp: number; index: number }
 
-export type OpponentMode = 'random' | 'hand'
+export type OpponentMode = 'random' | 'hand' | 'range'
 
 export interface Opponent {
   id: number
   mode: OpponentMode
   cards: (Card | null)[]
+  /** mode가 'range'일 때 사용할 레인지 차트 id */
+  rangeId: string | null
 }
 
 export const MAX_OPPONENTS = 9
@@ -29,7 +31,9 @@ interface EquityState {
   clearActive: () => void
   addOpponent: () => void
   removeOpponent: (opp: number) => void
-  setOpponentMode: (opp: number, mode: OpponentMode) => void
+  /** 'range'로 바꿀 때는 rangeId를 함께 준다 */
+  setOpponentMode: (opp: number, mode: OpponentMode, rangeId?: string | null) => void
+  setOpponentRange: (opp: number, rangeId: string) => void
   resetAll: () => void
   resetBoard: () => void
   setPot: (pot: number) => void
@@ -37,7 +41,7 @@ interface EquityState {
 }
 
 let nextOpponentId = 1
-const newOpponent = (): Opponent => ({ id: nextOpponentId++, mode: 'random', cards: [null, null] })
+const newOpponent = (): Opponent => ({ id: nextOpponentId++, mode: 'random', cards: [null, null], rangeId: null })
 
 export function sameSlot(a: SlotRef | null, b: SlotRef | null): boolean {
   if (!a || !b || a.kind !== b.kind || a.index !== b.index) return false
@@ -146,14 +150,19 @@ export const useEquityStore = create<EquityState>((set, get) => ({
     })
   },
 
-  setOpponentMode: (opp, mode) => {
+  setOpponentMode: (opp, mode, rangeId = null) => {
     const state = get()
-    const opponents = state.opponents.map((o, i) => (i === opp ? { ...o, mode, cards: [null, null] } : o))
+    const opponents = state.opponents.map((o, i) =>
+      i === opp ? { ...o, mode, cards: [null, null], rangeId: mode === 'range' ? rangeId : null } : o,
+    )
     set({
       opponents,
       active: mode === 'hand' ? { kind: 'opp', opp, index: 0 } : state.active?.kind === 'opp' ? null : state.active,
     })
   },
+
+  setOpponentRange: (opp, rangeId) =>
+    set({ opponents: get().opponents.map((o, i) => (i === opp ? { ...o, rangeId } : o)) }),
 
   resetAll: () => set(initialHands()),
 

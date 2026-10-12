@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import PageHeader from '../../components/PageHeader'
+import { useRangesStore } from '../ranges/store'
 import { buildRequest } from './buildRequest'
 import InputPanel from './InputPanel'
 import OutsPanel from './OutsPanel'
@@ -12,8 +13,9 @@ export default function EquityPage() {
   const hero = useEquityStore((s) => s.hero)
   const board = useEquityStore((s) => s.board)
   const opponents = useEquityStore((s) => s.opponents)
+  const charts = useRangesStore((s) => s.charts)
 
-  const built = useMemo(() => buildRequest(hero, board, opponents), [hero, board, opponents])
+  const built = useMemo(() => buildRequest(hero, board, opponents, charts), [hero, board, opponents, charts])
   const worker = useEquityWorker(built.request)
   const heroEquity = built.request && worker.result ? (worker.result.players[0]?.equity ?? null) : null
 
@@ -32,6 +34,7 @@ export default function EquityPage() {
             hero={built.hero}
             board={built.board}
             opponents={opponents}
+            charts={charts}
           />
           {showOuts && <OutsPanel hero={built.hero!} opponents={built.knownOpponents!} board={built.board} />}
           <PotOddsPanel equity={heroEquity} />
