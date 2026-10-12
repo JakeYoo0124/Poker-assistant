@@ -1,0 +1,21 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-felt-50: #ecfdf3;
+  --color-felt-100: #d1fae1;
+  --color-felt-500: #16a34a;
+  --color-felt-600: #15803d;
+  --color-felt-700: #166534;
+  --color-felt-800: #14532d;
+  --color-felt-900: #0c3b20;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
+}
